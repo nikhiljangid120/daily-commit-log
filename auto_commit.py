@@ -7,7 +7,7 @@ messages = [
     "Refining my skills one step at a time 🔁",
     "Learning something new every day 🧠",
     "Today's commit adds more value 💡",
-    "Progress, not perfection 🚀",
+    "Progress, not perfection 🚀",  
     "Sharpening the axe before the battle ⚔️",
     "DSA problem of the day ✅",
     "Coding discipline in motion 🧘",
@@ -18,7 +18,7 @@ messages = [
 # Append a new line to progress.md with timestamp and message
 msg = random.choice(messages)
 log_line = f"✅ {msg} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-with open("progress.md", "a") as file:
+with open("progress.md", "a", encoding="utf-8") as file:
     file.write(log_line)
 
 # Git commands to commit and push
