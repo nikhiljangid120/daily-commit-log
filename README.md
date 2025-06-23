@@ -2,7 +2,7 @@
 
 This bot helps you make daily commits to your GitHub repository automatically with meaningful messages and content to boost your contribution graph in a legitimate and smart way.
 
-## 📦 Features
+## 📦 Features 
 - Appends meaningful daily log to a markdown file
 - Random motivational commit messages
 - Automates daily commits using Python
