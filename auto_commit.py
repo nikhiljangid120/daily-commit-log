@@ -6,8 +6,8 @@ commits only that file, and pushes to origin/main.
 Works in two modes:
 - GitHub Actions (primary): the runner checks out a fresh copy of main,
   so the script just commits and pushes with the built-in GITHUB_TOKEN.
-- Local (manual): performs a `git pull --rebase` first so local commits
-  can never diverge from origin like v1 did.
+- Local (manual): performs a `git pull --rebase` on the clean tree first
+  so local commits can never diverge from origin like v1 did.
 
 Set COMMIT_TIMEZONE (IANA name) to change the day boundary; default IST.
 """
@@ -34,49 +34,81 @@ MESSAGES = [
 ]
 
 
+class GitError(RuntimeError):
+    """A git command failed."""
+
+
+def configure_streams() -> None:
+    """Emoji-rich output must not crash on Windows cp1252 consoles."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def run(cmd: list[str]) -> None:
-    """Run a git command, streaming output, failing loudly on error."""
+    """Run a git command, failing loudly (non-zero exit) on error."""
     result = subprocess.run(cmd, text=True, capture_output=True)
     if result.returncode != 0:
         sys.stderr.write(result.stdout)
         sys.stderr.write(result.stderr)
-        raise SystemExit(f"❌ Command failed: {' '.join(cmd)}")
+        raise GitError(f"Command failed: {' '.join(cmd)}")
 
 
-def today_line() -> str:
+def today_entry() -> tuple[str, str]:
     tz = ZoneInfo(os.environ.get("COMMIT_TIMEZONE", "Asia/Kolkata"))
-    now = datetime.now(tz)
-    date_str = now.strftime("%Y-%m-%d")
+    date_str = datetime.now(tz).strftime("%Y-%m-%d")
     return date_str, f"✅ {date_str} — {random.choice(MESSAGES)}\n"
 
 
-def entry_exists(content: str, date_str: str) -> bool:
+def read_progress() -> str:
+    if not os.path.exists(PROGRESS_FILE):
+        return ""
+    with open(PROGRESS_FILE, encoding="utf-8") as f:
+        return f.read()
+
+
+def has_entry(content: str, date_str: str) -> bool:
     return date_str in content
 
 
+def sync_with_remote() -> None:
+    """Local-mode safety net: integrate remote commits while the tree is
+    still clean. In CI the checkout is always fresh, so skip it there."""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return
+    run(["git", "pull", "--rebase", "origin", "main"])
+
+
 def main() -> None:
-    date_str, line = today_line()
+    configure_streams()
+    date_str, line = today_entry()
 
-    content = ""
-    if os.path.exists(PROGRESS_FILE):
-        with open(PROGRESS_FILE, encoding="utf-8") as f:
-            content = f.read()
-
-    if entry_exists(content, date_str):
+    if has_entry(read_progress(), date_str):
         print(f"⏭️  Entry for {date_str} already exists — nothing to do.")
+        return
+
+    sync_with_remote()
+
+    # The pull may have brought in today's entry (e.g. Actions ran first).
+    if has_entry(read_progress(), date_str):
+        print(f"⏭️  Remote already has the {date_str} entry — nothing to do.")
         return
 
     with open(PROGRESS_FILE, "a", encoding="utf-8") as f:
         f.write(line)
     print(f"📝 Appended: {line.strip()}")
 
-    # Local-mode safety net: integrate any remote commits first.
-    # In CI the checkout is always fresh, so this is a fast no-op there.
-    run(["git", "pull", "--rebase", "origin", "main"])
-
     run(["git", "add", PROGRESS_FILE])
     run(["git", "commit", "-m", f"📓 Daily log {date_str} [skip ci]"])
-    run(["git", "push", "origin", "main"])
+
+    try:
+        run(["git", "push", "origin", "main"])
+    except GitError:
+        # Remote may have moved between pull and push; rebase and retry once.
+        print("⚠️  Push rejected — rebasing on latest origin/main and retrying…")
+        run(["git", "pull", "--rebase", "origin", "main"])
+        run(["git", "push", "origin", "main"])
+
     print("🚀 Committed and pushed to origin/main.")
 
 
