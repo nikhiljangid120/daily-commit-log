@@ -1,0 +1,36 @@
+name: Daily auto-commit
+
+"on":
+  schedule:
+    # 03:30 UTC == 09:00 IST daily. GitHub may start scheduled runs late.
+    - cron: "30 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-auto-commit
+  cancel-in-progress: false
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Configure bot identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run auto-commit bot
+        run: python auto_commit.py
+        env:
+          COMMIT_TIMEZONE: Asia/Kolkata

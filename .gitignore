@@ -1,0 +1,8 @@
+# Codebuff / local tooling artifacts
+.freebuff/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
