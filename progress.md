@@ -14,3 +14,4 @@
 ✅ 2026-09-17 — Sharpening the axe before the battle ⚔️
 ✅ 2026-09-18 — One day, one commit, closer to mastery 🌟
 ✅ 2026-09-19 — Coding discipline in motion 🧘
+✅ 2026-09-20 — DSA problem of the day ✅
